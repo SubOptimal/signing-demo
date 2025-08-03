@@ -9,7 +9,16 @@ demo_repo_dir="${work_dir}/demo-repo"
 
 if [[ "$1" = "--cleanup" ]]; then
   echo "[*] Cleanup the working directory"
-  rm -rfi "${work_dir}"
+  read -r -p "Remove the working directory '${work_dir}'? [y/N] " response
+  response="${response:-n}"
+  response="${response:0:1}"
+  response="${response,,}"
+  if [[ "$response" != "y" ]]; then
+    echo "[-] Aborted: The working directory was not removed"
+    exit 1
+  fi
+  echo "[+] Remove the working directory"
+  rm -rf "${work_dir}"
   exit
 fi
 
