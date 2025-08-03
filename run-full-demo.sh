@@ -23,16 +23,6 @@ if [[ "$1" = "--cleanup" ]]; then
   exit
 fi
 
-echo "[*] === Preparation steps ==="
-mkdir -p "${work_dir}"
-
-if ! [[ -f "${work_dir}/john_doe" ]]; then
-  echo "[+] Create a SSH key pair for the demo user John Doe"
-  ssh-keygen -q -t ed25519 -C "john.doe@example.com" -f "${work_dir}/john_doe" -P ""
-else
-  echo "[-] Skipped: SSH key pair for the demo user John Doe already exist"
-fi
-
 if [[ -d "${demo_repo_dir}" ]]; then
   cat <<HERE
 WARNING: The demo repository seems to exist already.
@@ -45,6 +35,11 @@ remove the sub-directory ./$(basename $work_dir) recursively and all data in it.
 HERE
   exit 1
 fi
+
+echo "[*] === Preparation steps ==="
+mkdir -p "${work_dir}"
+echo "[+] Create a SSH key pair for the demo user John Doe"
+ssh-keygen -q -t ed25519 -C "john.doe@example.com" -f "${work_dir}/john_doe" -P ""
 
 echo "[+] Create a clone of this repository in the working directory"
 git clone --quiet "$(pwd)" "${demo_repo_dir}"
@@ -89,7 +84,7 @@ kill -s 9 ${SSH_AGENT_PID}
 echo "[+] Git log show signature: with allowed signers file not configured"
 # error: gpg.ssh.allowedSignersFile needs to be configured and exist for ssh signature verification
 cd "${demo_repo_dir}"
-git log --show-signature -2
+git log --show-signature -1
 
 echo "[+] Configure allowed signers file in the repository"
 cd "${work_dir}"
@@ -102,7 +97,7 @@ echo "[+] Git log show signature: with allowed signers file configured"
 # Good "git" signature with ED25519 key SHA256:...
 # No principal matched.
 cd "${demo_repo_dir}"
-git log --show-signature -2
+git log --show-signature -1
 
 echo "[+] Add John's public key to the allowed signers file"
 cd "${work_dir}"
@@ -111,10 +106,9 @@ awk '{ print $3,$1,$2 }' < john_doe.pub > "${allowed_signers_file}"
 echo "[+] Git log show signature: with John's public key added to the allowed signers file"
 # Good "git" signature for john.doe@example.com with ED25519 key SHA256:...
 cd "${demo_repo_dir}"
-git log --show-signature -2
+git log --show-signature -1
 
 echo "[*] === Process GitHub GPG signed commits ==="
-echo "[+] Git log show signature: without GitHub signing key"
 first_commit="$(git rev-list --max-parents=0 HEAD)"
 github_fingerprint="968479A1AFF927E37D1A566BB5690EEEBB952194"
 # for demonstration purposes the GitHub GPG public signing key is removed from
@@ -123,6 +117,8 @@ if gpg --list-public-keys |& grep --quiet "${github_fingerprint}"; then
   echo "[+] Delete GitHub GPG public signing key from the local keyring"
   gpg --batch --quiet --delete-key "${github_fingerprint}"
 fi
+echo "[+] Git log show signature: without GitHub signing key"
+cd "${demo_repo_dir}"
 git log --show-signature "${first_commit}"
 
 echo "[+] Add GitHub GPG public signing key to the keyring"
@@ -132,4 +128,5 @@ echo "[+] Set GitHub owner trust to ultimate"
 echo "${github_fingerprint}:6:" | gpg --import-ownertrust --quiet
 
 echo "[+] Git log show signature: with GitHub GPG public signing key added to the keyring"
+cd "${demo_repo_dir}"
 git log --show-signature "${first_commit}"
