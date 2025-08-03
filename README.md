@@ -10,3 +10,5 @@ The following steps are executed:
 - Configure git to use the SSH key for signing commits
 - Create a new commit and sign it with the SSH key
 - Verify the signed commit
+- Add the GitHub public GPG key
+- Verify the signed GitHub commit
